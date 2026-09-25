@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Must match the Worker created by the Workers Builds import (it owns the
+  // time.apphub.casa custom domain). Never rename.
+  "name": "time",
+  "compatibility_date": "2026-09-25",
+  "assets": {
+    "directory": "public"
+  },
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    { "pattern": "time.apphub.casa", "custom_domain": true }
+  ]
+}

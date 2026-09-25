@@ -1,0 +1,1109 @@
+<!doctype html>
+<html lang="no">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tid">
+<title>Tid · Time</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<style>
+  :root {
+    --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --bg: #0a0a0c;
+    --panel: #131317;
+    --panel-2: #1b1b21;
+    --line: rgba(255, 255, 255, 0.07);
+    --text: #f2f2f4;
+    --muted: rgba(242, 242, 244, 0.5);
+    --faint: rgba(242, 242, 244, 0.28);
+    --accent: #f5a524;
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--bg);
+    font-family: var(--font);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+  body.locked { overflow: hidden; }
+
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  [hidden] { display: none !important; }
+
+  /* ---------- Clocks ---------- */
+
+  #clocks {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding:
+      max(1rem, env(safe-area-inset-top))
+      max(clamp(1.25rem, 5vw, 4rem), env(safe-area-inset-right))
+      max(1rem, env(safe-area-inset-bottom))
+      max(clamp(1.25rem, 5vw, 4rem), env(safe-area-inset-left));
+    transition: transform 2s ease;
+  }
+
+  .clock {
+    flex: 1 0 var(--row, 6rem);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 1.5rem;
+    border-top: 1px solid var(--line);
+  }
+  .clock:first-child { border-top: 0; }
+
+  .place-name {
+    font-size: var(--name, 1.5rem);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .clock.local .place-name::after {
+    content: "";
+    display: inline-block;
+    width: 0.3em;
+    height: 0.3em;
+    margin-left: 0.4em;
+    border-radius: 50%;
+    background: var(--accent);
+    vertical-align: middle;
+  }
+  .meta {
+    margin-top: 0.25em;
+    font-size: calc(var(--name, 1.5rem) * 0.55);
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .meta:first-letter { text-transform: uppercase; }
+
+  .time {
+    font-size: var(--time, 4rem);
+    font-weight: 200;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    text-align: right;
+  }
+  .time .ss { color: var(--faint); }
+  .time .ap {
+    margin-left: 0.15em;
+    font-size: 0.3em;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+  .clock.night .time { color: rgba(242, 242, 244, 0.72); }
+
+  /* A single clock: stacked and centered. */
+  #clocks.solo .clock {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    align-content: center;
+    text-align: center;
+    row-gap: 0.6em;
+  }
+  #clocks.solo .time { order: -1; text-align: center; }
+  #clocks.solo .place-name, #clocks.solo .meta { max-width: 90vw; }
+
+  #empty {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 1.25rem;
+    color: var(--muted);
+    text-align: center;
+    padding: 2rem;
+  }
+
+  /* ---------- Controls ---------- */
+
+  #controls {
+    position: fixed;
+    top: max(0.9rem, env(safe-area-inset-top));
+    right: max(0.9rem, env(safe-area-inset-right));
+    display: flex;
+    gap: 0.5rem;
+    transition: opacity 0.6s ease;
+  }
+  body.idle #controls { opacity: 0; pointer-events: none; }
+  body.idle { cursor: none; }
+
+  .icon-btn {
+    display: grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--muted);
+    transition: background 0.2s, color 0.2s;
+  }
+  .icon-btn:hover { background: rgba(255, 255, 255, 0.12); color: var(--text); }
+  .icon-btn svg { width: 1.2rem; height: 1.2rem; }
+  .icon-btn.sm { width: 2.25rem; height: 2.25rem; background: transparent; }
+  .icon-btn.sm:hover { background: rgba(255, 255, 255, 0.08); }
+  .icon-btn.sm svg { width: 1.05rem; height: 1.05rem; }
+
+  /* ---------- Settings ---------- */
+
+  #scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  #scrim.open { opacity: 1; pointer-events: auto; }
+
+  #sheet {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(28rem, 100%);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: var(--panel);
+    border-left: 1px solid var(--line);
+    padding:
+      max(1.25rem, env(safe-area-inset-top))
+      max(1.25rem, env(safe-area-inset-right))
+      max(1.5rem, env(safe-area-inset-bottom))
+      1.25rem;
+    transform: translateX(100%);
+    transition: transform 0.4s var(--ease);
+  }
+  #scrim.open #sheet { transform: none; }
+
+  .sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+  }
+  .sheet-head h2 { margin: 0; font-size: 1.35rem; font-weight: 600; letter-spacing: -0.01em; }
+
+  section { margin-bottom: 1.75rem; }
+  h3 {
+    margin: 0 0 0.6rem 0.2rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .card {
+    border-radius: 14px;
+    background: var(--panel-2);
+    overflow: hidden;
+  }
+  .card > * + * { border-top: 1px solid var(--line); }
+
+  .place {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem 0.4rem 0.5rem 0.9rem;
+  }
+  .place-main { flex: 1; min-width: 0; }
+  .name-input {
+    width: 100%;
+    padding: 0.2rem 0;
+    border: 0;
+    border-bottom: 1px solid transparent;
+    background: transparent;
+    font-size: 1rem;
+    font-weight: 500;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .name-input::placeholder { color: var(--text); opacity: 1; }
+  .name-input:hover { border-bottom-color: var(--line); }
+  .name-input:focus { border-bottom-color: var(--accent); }
+  .name-input:focus::placeholder { color: var(--faint); }
+  .place-sub {
+    font-size: 0.8rem;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-variant-numeric: tabular-nums;
+  }
+  .place .icon-btn.sm[disabled] { visibility: hidden; }
+
+  .search {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 0.75rem;
+    padding: 0 0.9rem;
+    border-radius: 14px;
+    background: var(--panel-2);
+    border: 1px solid transparent;
+    transition: border-color 0.2s;
+  }
+  .search:focus-within { border-color: rgba(245, 165, 36, 0.6); }
+  .search svg { width: 1.05rem; height: 1.05rem; flex: none; color: var(--muted); }
+  .search input {
+    flex: 1;
+    min-width: 0;
+    padding: 0.8rem 0;
+    border: 0;
+    background: transparent;
+    outline: none;
+    font-size: 1rem;
+  }
+  .search input::placeholder { color: var(--faint); }
+
+  #results { margin-top: 0.5rem; }
+  #results:empty { display: none; }
+  .result {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    width: 100%;
+    padding: 0.7rem 0.9rem;
+    border: 0;
+    background: transparent;
+    text-align: left;
+  }
+  .result:hover, .result:focus-visible, .result.active { background: rgba(255, 255, 255, 0.05); outline: none; }
+  .result .r-name { font-weight: 500; }
+  .result .r-sub { display: block; font-size: 0.8rem; color: var(--muted); }
+  .result .r-time { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
+  .no-results { padding: 0.8rem 0.9rem; color: var(--muted); font-size: 0.9rem; }
+
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 3.25rem;
+    padding: 0.4rem 0.9rem;
+  }
+  .row label, .row .text { font-size: 0.98rem; }
+
+  .switch { position: relative; width: 2.9rem; height: 1.75rem; flex: none; }
+  .switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; z-index: 1; }
+  .switch .track {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.14);
+    transition: background 0.25s;
+  }
+  .switch .track::after {
+    content: "";
+    position: absolute;
+    top: 0.2rem;
+    left: 0.2rem;
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.3s var(--ease);
+  }
+  .switch input:checked + .track { background: var(--accent); }
+  .switch input:checked + .track::after { transform: translateX(1.15rem); }
+  .switch input:focus-visible + .track { box-shadow: 0 0 0 3px rgba(245, 165, 36, 0.5); }
+
+  .segmented {
+    display: inline-flex;
+    padding: 0.2rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.07);
+  }
+  .segmented button {
+    border: 0;
+    background: transparent;
+    padding: 0.4rem 0.85rem;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    color: var(--muted);
+    white-space: nowrap;
+    transition: background 0.2s, color 0.2s;
+  }
+  .segmented button[aria-pressed="true"] { background: rgba(255, 255, 255, 0.14); color: var(--text); }
+
+  .pill {
+    border: 0;
+    border-radius: 999px;
+    padding: 0.65rem 1.2rem;
+    background: rgba(255, 255, 255, 0.1);
+    font-size: 0.95rem;
+    transition: background 0.2s;
+  }
+  .pill:hover { background: rgba(255, 255, 255, 0.16); }
+  .ghost {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: 0.9rem;
+    padding: 0.5rem 0.2rem;
+  }
+  .ghost:hover { color: var(--text); }
+
+  .footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+  .install-hint { margin: 0.75rem 0 0; font-size: 0.85rem; color: var(--muted); }
+
+  .repo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    margin-top: 2rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--line);
+    color: var(--faint);
+    font-size: 0.8rem;
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .repo:hover { color: var(--muted); }
+  .repo svg { width: 1rem; height: 1rem; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition-duration: 0s !important; }
+  }
+</style>
+</head>
+<body>
+
+<main id="clocks" aria-live="off"></main>
+
+<div id="empty" hidden>
+  <p data-i18n="empty"></p>
+  <button class="pill" id="empty-add" data-i18n="addPlace"></button>
+</div>
+
+<div id="controls">
+  <button class="icon-btn" id="fullscreen" data-i18n-title="fullscreen">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+  </button>
+  <button class="icon-btn" id="gear" data-i18n-title="settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  </button>
+</div>
+
+<div id="scrim">
+  <div id="sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <div class="sheet-head">
+      <h2 id="settings-title" data-i18n="settings"></h2>
+      <button class="icon-btn" id="close" data-i18n-title="close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+
+    <section>
+      <h3 data-i18n="places"></h3>
+      <div class="card" id="places"></div>
+      <label class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input id="search" type="search" autocomplete="off" spellcheck="false" data-i18n-placeholder="search">
+      </label>
+      <div class="card" id="results" role="listbox"></div>
+    </section>
+
+    <section>
+      <h3 data-i18n="display"></h3>
+      <div class="card">
+        <div class="row">
+          <span class="text" data-i18n="format"></span>
+          <div class="segmented" id="format">
+            <button data-value="24">24 t</button>
+            <button data-value="12">12 t</button>
+          </div>
+        </div>
+        <div class="row">
+          <label for="seconds" data-i18n="seconds"></label>
+          <span class="switch"><input type="checkbox" id="seconds"><span class="track"></span></span>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h3 data-i18n="language"></h3>
+      <div class="segmented" id="lang">
+        <button data-value="auto">Auto</button>
+        <button data-value="no">Norsk</button>
+        <button data-value="en">English</button>
+      </div>
+    </section>
+
+    <div class="footer">
+      <button class="pill" id="install" data-i18n="install" hidden></button>
+      <button class="ghost" id="reset" data-i18n="reset"></button>
+    </div>
+    <p class="install-hint" id="ios-install" data-i18n="iosInstall" hidden></p>
+
+    <a class="repo" href="https://github.com/gunnaringe/time" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5z"/></svg>
+      github.com/gunnaringe/time
+    </a>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+// ---------- i18n ----------
+
+const I18N = {
+  no: {
+    settings: "Innstillinger",
+    close: "Lukk",
+    fullscreen: "Fullskjerm",
+    places: "Steder",
+    search: "Legg til by eller tidssone",
+    noResults: "Fant ingen steder",
+    display: "Visning",
+    format: "Klokkeformat",
+    seconds: "Vis sekunder",
+    language: "Språk",
+    reset: "Tilbakestill",
+    resetConfirm: "Tilbakestille alle steder og innstillinger?",
+    install: "Installer app",
+    iosInstall: "Legg til på Hjem-skjermen: trykk Del og så «Legg til på Hjem-skjerm».",
+    empty: "Ingen steder ennå.",
+    addPlace: "Legg til sted",
+    up: "Flytt opp",
+    down: "Flytt ned",
+    remove: "Fjern",
+    today: "i dag",
+    tomorrow: "i morgen",
+    yesterday: "i går",
+    sameTime: "samme tid",
+    here: "her",
+    hours: "t",
+  },
+  en: {
+    settings: "Settings",
+    close: "Close",
+    fullscreen: "Fullscreen",
+    places: "Places",
+    search: "Add a city or time zone",
+    noResults: "No places found",
+    display: "Display",
+    format: "Clock format",
+    seconds: "Show seconds",
+    language: "Language",
+    reset: "Reset",
+    resetConfirm: "Reset all places and settings?",
+    install: "Install app",
+    iosInstall: "Add to Home Screen: tap Share, then “Add to Home Screen”.",
+    empty: "No places yet.",
+    addPlace: "Add a place",
+    up: "Move up",
+    down: "Move down",
+    remove: "Remove",
+    today: "today",
+    tomorrow: "tomorrow",
+    yesterday: "yesterday",
+    sameTime: "same time",
+    here: "here",
+    hours: "h",
+  },
+};
+
+// ---------- Time zones ----------
+
+// Canonical ID as this browser spells it (Chrome says Asia/Calcutta for
+// Asia/Kolkata), or null if the zone isn't supported. Compare zones with this.
+const canonCache = new Map();
+function canon(zone) {
+  if (!canonCache.has(zone)) {
+    let id = null;
+    try { id = new Intl.DateTimeFormat("en-US", { timeZone: zone }).resolvedOptions().timeZone; } catch {}
+    canonCache.set(zone, id);
+  }
+  return canonCache.get(zone);
+}
+
+const LOCAL = canon(Intl.DateTimeFormat().resolvedOptions().timeZone) || "UTC";
+
+// Cities people look for that aren't a time zone ID themselves.
+const ALIASES = [
+  ["San Jose", "America/Los_Angeles"], ["San Francisco", "America/Los_Angeles"],
+  ["Seattle", "America/Los_Angeles"], ["Portland", "America/Los_Angeles"],
+  ["Las Vegas", "America/Los_Angeles"], ["San Diego", "America/Los_Angeles"],
+  ["Salt Lake City", "America/Denver"], ["Dallas", "America/Chicago"],
+  ["Houston", "America/Chicago"], ["Austin", "America/Chicago"],
+  ["Minneapolis", "America/Chicago"], ["Washington", "America/New_York"],
+  ["Boston", "America/New_York"], ["Atlanta", "America/New_York"],
+  ["Miami", "America/New_York"], ["Philadelphia", "America/New_York"],
+  ["Montreal", "America/Toronto"], ["Ottawa", "America/Toronto"],
+  ["Calgary", "America/Edmonton"], ["Rio de Janeiro", "America/Sao_Paulo"],
+  ["Reykjavik", "Atlantic/Reykjavik"], ["Edinburgh", "Europe/London"],
+  ["Manchester", "Europe/London"], ["Bergen", "Europe/Oslo"],
+  ["Trondheim", "Europe/Oslo"], ["Stavanger", "Europe/Oslo"],
+  ["Tromsø", "Europe/Oslo"], ["Kristiansand", "Europe/Oslo"],
+  ["Gothenburg", "Europe/Stockholm"], ["Göteborg", "Europe/Stockholm"],
+  ["Malmö", "Europe/Stockholm"], ["Aarhus", "Europe/Copenhagen"],
+  ["Munich", "Europe/Berlin"], ["Frankfurt", "Europe/Berlin"],
+  ["Hamburg", "Europe/Berlin"], ["Barcelona", "Europe/Madrid"],
+  ["Milan", "Europe/Rome"], ["Geneva", "Europe/Zurich"],
+  ["Krakow", "Europe/Warsaw"], ["Kyiv", "Europe/Kyiv"],
+  ["Saint Petersburg", "Europe/Moscow"], ["Tel Aviv", "Asia/Jerusalem"],
+  ["Abu Dhabi", "Asia/Dubai"], ["Mumbai", "Asia/Kolkata"],
+  ["Delhi", "Asia/Kolkata"], ["New Delhi", "Asia/Kolkata"],
+  ["Bangalore", "Asia/Kolkata"], ["Bengaluru", "Asia/Kolkata"],
+  ["Kolkata", "Asia/Kolkata"], ["Chennai", "Asia/Kolkata"],
+  ["Hyderabad", "Asia/Kolkata"], ["Ho Chi Minh City", "Asia/Ho_Chi_Minh"],
+  ["Hanoi", "Asia/Bangkok"], ["Beijing", "Asia/Shanghai"],
+  ["Shenzhen", "Asia/Shanghai"], ["Osaka", "Asia/Tokyo"],
+  ["Kyoto", "Asia/Tokyo"], ["Busan", "Asia/Seoul"],
+  ["Canberra", "Australia/Sydney"], ["Wellington", "Pacific/Auckland"],
+  ["Cape Town", "Africa/Johannesburg"], ["Kathmandu", "Asia/Kathmandu"],
+];
+
+function cityOf(zone) {
+  const fixed = /^Etc\/GMT([+-]\d+)$/.exec(zone);
+  if (fixed) return offsetLabel(-60 * Number(fixed[1]));
+  if (zone === "UTC" || zone === "Etc/UTC" || zone === "Etc/GMT") return "UTC";
+  return zone.split("/").pop().replace(/_/g, " ");
+}
+
+const fmtCache = new Map();
+function fmt(key, make) {
+  if (!fmtCache.has(key)) fmtCache.set(key, make());
+  return fmtCache.get(key);
+}
+
+// Wall clock in a zone: { y, mo, d, h, mi, s, off } with off in minutes east of UTC.
+function wall(zone, date) {
+  const parts = fmt("wall|" + zone, () => new Intl.DateTimeFormat("en-US", {
+    timeZone: zone, hourCycle: "h23",
+    year: "numeric", month: "numeric", day: "numeric",
+    hour: "numeric", minute: "numeric", second: "numeric",
+  })).formatToParts(date);
+  const n = (type) => Number(parts.find((p) => p.type === type).value);
+  const name = fmt("off|" + zone, () => new Intl.DateTimeFormat("en-US", {
+    timeZone: zone, timeZoneName: "longOffset",
+  })).formatToParts(date).find((p) => p.type === "timeZoneName").value;
+  const m = /([+-])(\d{1,2}):?(\d{2})?/.exec(name); // "GMT+05:30", or "GMT" for UTC
+  const off = m ? (m[1] === "-" ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3] || 0)) : 0;
+  return { y: n("year"), mo: n("month"), d: n("day"), h: n("hour") % 24, mi: n("minute"), s: n("second"), off };
+}
+
+const pad = (n) => String(n).padStart(2, "0");
+const MINUS = "−";
+
+function signed(min) {
+  const a = Math.abs(min);
+  return (min < 0 ? MINUS : "+") + Math.floor(a / 60) + (a % 60 ? ":" + pad(a % 60) : "");
+}
+function offsetLabel(min) { return min ? "UTC" + signed(min) : "UTC"; }
+
+function clockText(w, withSeconds) {
+  const h12 = settings.format === "12";
+  const h = h12 ? (w.h % 12 || 12) : pad(w.h);
+  return {
+    hm: h + ":" + pad(w.mi),
+    ss: withSeconds ? ":" + pad(w.s) : "",
+    ap: h12 ? (w.h < 12 ? "AM" : "PM") : "",
+  };
+}
+
+// ---------- Search ----------
+
+const fold = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+let INDEX = null;
+function buildIndex() {
+  const zones = (Intl.supportedValuesOf ? Intl.supportedValuesOf("timeZone") : []).slice();
+  if (!zones.includes("UTC")) zones.push("UTC");
+  const seen = new Set();
+  const out = [];
+  const add = (label, zone) => {
+    const id = canon(zone);
+    if (!id) return;
+    const key = fold(label) + "|" + id;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push({ label, zone, key: fold(label), id: fold(zone) });
+  };
+  for (const z of zones) add(cityOf(z), z);
+  for (const [label, zone] of ALIASES) add(label, zone);
+  return out;
+}
+
+function search(q) {
+  q = fold(q.trim());
+  if (!q) return [];
+  // "UTC+5", "gmt-3", "+2": whole-hour fixed offsets (Etc/GMT-5 is UTC+5).
+  const off = /^(?:utc|gmt)?\s*([+-−])\s*(\d{1,2})$/.exec(q);
+  if (off) {
+    const hours = Number(off[2]) * (off[1] === "+" ? 1 : -1);
+    if (hours >= -12 && hours <= 14) {
+      const zone = hours === 0 ? "UTC" : "Etc/GMT" + (hours > 0 ? "-" : "+") + Math.abs(hours);
+      if (canon(zone)) return [{ label: offsetLabel(hours * 60), zone }];
+    }
+  }
+  INDEX ||= buildIndex();
+  const scored = [];
+  for (const e of INDEX) {
+    let score;
+    if (e.key.startsWith(q)) score = 0;
+    else if (e.key.split(/[\s-]/).some((w) => w.startsWith(q))) score = 1;
+    else if (e.key.includes(q)) score = 2;
+    else if (q.length > 2 && e.id.includes(q.replace(/ /g, "_"))) score = 3;
+    else continue;
+    scored.push([score, e]);
+  }
+  scored.sort((a, b) => a[0] - b[0] || a[1].label.localeCompare(b[1].label));
+  return scored.slice(0, 8).map(([, e]) => e);
+}
+
+// ---------- Settings ----------
+
+const STORE = "time-settings-v1";
+
+function defaults() {
+  const places = [{ zone: LOCAL, label: cityOf(LOCAL), name: "" }];
+  for (const [label, zone] of [["New York", "America/New_York"], ["London", "Europe/London"], ["Tokyo", "Asia/Tokyo"]]) {
+    if (canon(zone) && canon(zone) !== LOCAL) places.push({ zone, label, name: "" });
+  }
+  const h12 = new Intl.DateTimeFormat(undefined, { hour: "numeric" }).resolvedOptions().hour12;
+  return { places, format: h12 ? "12" : "24", seconds: false, lang: "auto" };
+}
+
+function load() {
+  const base = defaults();
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORE));
+    if (saved && typeof saved === "object") Object.assign(base, saved);
+  } catch {}
+  base.places = (Array.isArray(base.places) ? base.places : [])
+    .filter((p) => p && typeof p.zone === "string" && canon(p.zone))
+    .map((p) => ({ zone: p.zone, label: String(p.label || cityOf(p.zone)), name: String(p.name || "") }));
+  return base;
+}
+
+let settings = load();
+
+function save() {
+  try { localStorage.setItem(STORE, JSON.stringify(settings)); } catch {}
+}
+
+function lang() {
+  if (settings.lang !== "auto") return settings.lang;
+  const prefs = navigator.languages?.length ? navigator.languages : [navigator.language || "en"];
+  return prefs.some((l) => /^(no|nb|nn)\b/i.test(l)) ? "no" : "en";
+}
+const t = (key) => I18N[lang()][key];
+const locale = () => (lang() === "no" ? "nb-NO" : "en-GB");
+
+function applyI18n() {
+  document.documentElement.lang = lang();
+  document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-title]").forEach((el) => {
+    el.title = t(el.dataset.i18nTitle);
+    el.setAttribute("aria-label", el.title);
+  });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+  document.querySelectorAll("#format button").forEach((b) => { b.textContent = b.dataset.value + " " + t("hours"); });
+}
+
+// ---------- Clock list ----------
+
+const $ = (sel) => document.querySelector(sel);
+const clocksEl = $("#clocks");
+let rows = [];
+
+function renderClocks() {
+  clocksEl.replaceChildren();
+  rows = settings.places.map((p) => {
+    const el = document.createElement("div");
+    el.className = "clock";
+    el.innerHTML = '<div class="info"><div class="place-name"></div><div class="meta"></div></div>' +
+      '<div class="time"><span class="hm"></span><span class="ss"></span><span class="ap"></span></div>';
+    el.querySelector(".place-name").textContent = p.name || p.label;
+    el.classList.toggle("local", canon(p.zone) === LOCAL);
+    clocksEl.append(el);
+    return { place: p, el, name: el.querySelector(".place-name"), meta: el.querySelector(".meta"),
+      hm: el.querySelector(".hm"), ss: el.querySelector(".ss"), ap: el.querySelector(".ap") };
+  });
+  $("#empty").hidden = rows.length > 0;
+  clocksEl.classList.toggle("solo", rows.length === 1);
+  fit();
+  tick();
+}
+
+// Size rows and type so 1 to ~8 clocks fill the screen without scrolling.
+function fit() {
+  const n = Math.max(rows.length, 1);
+  const cs = getComputedStyle(clocksEl);
+  const H = innerHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  const W = clocksEl.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const chars = (settings.seconds ? 4.1 : 2.75) + (settings.format === "12" ? 0.75 : 0);
+  let time, name;
+  if (n === 1) {
+    time = Math.min(H * 0.42, (W * 0.92) / chars);
+    name = Math.max(18, Math.min(time * 0.2, 56));
+  } else {
+    const row = Math.max(84, H / n);
+    time = Math.min(row * 0.58, (W * 0.58) / chars);
+    name = Math.max(15, Math.min(time * 0.36, row * 0.26, 48));
+  }
+  clocksEl.style.setProperty("--row", Math.max(84, H / n) + "px");
+  clocksEl.style.setProperty("--time", time + "px");
+  clocksEl.style.setProperty("--name", name + "px");
+}
+
+function tick() {
+  const now = new Date();
+  const here = wall(LOCAL, now);
+  const hereDay = Date.UTC(here.y, here.mo - 1, here.d);
+  for (const r of rows) {
+    const w = wall(r.place.zone, now);
+    const c = clockText(w, settings.seconds);
+    r.hm.textContent = c.hm;
+    r.ss.textContent = c.ss;
+    r.ap.textContent = c.ap;
+    let meta;
+    if (canon(r.place.zone) === LOCAL) {
+      meta = fmt("date|" + locale() + "|" + r.place.zone, () => new Intl.DateTimeFormat(locale(), {
+        timeZone: r.place.zone, weekday: "long", day: "numeric", month: "long",
+      })).format(now);
+    } else {
+      const days = Math.round((Date.UTC(w.y, w.mo - 1, w.d) - hereDay) / 86400000);
+      const day = days > 0 ? t("tomorrow") : days < 0 ? t("yesterday") : t("today");
+      const diff = w.off - here.off;
+      meta = day + " · " + (diff ? signed(diff) + " " + t("hours") : t("sameTime"));
+    }
+    if (r.meta.textContent !== meta) r.meta.textContent = meta;
+    r.el.classList.toggle("night", w.h >= 22 || w.h < 6);
+  }
+  if (scrim.classList.contains("open")) tickPlaces(now);
+}
+
+// Tick on the second boundary; setInterval drifts and throttles.
+let timer = 0;
+function schedule() {
+  clearTimeout(timer);
+  timer = setTimeout(() => { tick(); schedule(); }, 1000 - (Date.now() % 1000) + 5);
+}
+
+// Nudge everything by a pixel or two every few minutes against burn-in on always-on screens.
+setInterval(() => {
+  const r = () => Math.round(Math.random() * 4 - 2);
+  clocksEl.style.transform = `translate(${r()}px, ${r()}px)`;
+}, 180000);
+
+// ---------- Settings sheet ----------
+
+const scrim = $("#scrim");
+const placesEl = $("#places");
+const searchEl = $("#search");
+const resultsEl = $("#results");
+let placeRows = [];
+
+const ICONS = {
+  up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>',
+  down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
+  remove: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+};
+
+function iconButton(kind, onClick) {
+  const b = document.createElement("button");
+  b.className = "icon-btn sm";
+  b.innerHTML = ICONS[kind];
+  b.title = t(kind);
+  b.setAttribute("aria-label", b.title);
+  b.addEventListener("click", onClick);
+  return b;
+}
+
+function zoneText(zone) {
+  return /^(UTC|Etc\/)/.test(zone) ? "" : zone.replace(/_/g, " ") + " · ";
+}
+
+function renderPlaces() {
+  placesEl.replaceChildren();
+  placeRows = settings.places.map((p, i) => {
+    const row = document.createElement("div");
+    row.className = "place";
+    const main = document.createElement("div");
+    main.className = "place-main";
+    const input = document.createElement("input");
+    input.className = "name-input";
+    input.maxLength = 40;
+    input.spellcheck = false;
+    input.placeholder = p.label;
+    input.value = p.name;
+    input.setAttribute("aria-label", p.label);
+    input.addEventListener("input", () => {
+      p.name = input.value.trim() ? input.value : "";
+      save();
+      rows[i].name.textContent = p.name || p.label;
+    });
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") input.blur(); });
+    const sub = document.createElement("div");
+    sub.className = "place-sub";
+    main.append(input, sub);
+
+    const move = (to) => {
+      const [item] = settings.places.splice(i, 1);
+      settings.places.splice(to, 0, item);
+      changed();
+      placesEl.children[to]?.querySelector(to < i ? "button" : "button:nth-of-type(2)")?.focus();
+    };
+    const up = iconButton("up", () => move(i - 1));
+    const down = iconButton("down", () => move(i + 1));
+    up.disabled = i === 0;
+    down.disabled = i === settings.places.length - 1;
+    const remove = iconButton("remove", () => {
+      settings.places.splice(i, 1);
+      changed();
+    });
+    row.append(main, up, down, remove);
+    placesEl.append(row);
+    return { place: p, sub };
+  });
+  placesEl.hidden = placeRows.length === 0;
+  tickPlaces(new Date());
+}
+
+function tickPlaces(now) {
+  for (const r of placeRows) {
+    const w = wall(r.place.zone, now);
+    const c = clockText(w, false);
+    r.sub.textContent = zoneText(r.place.zone) + offsetLabel(w.off) + " · " + c.hm + (c.ap ? " " + c.ap : "");
+  }
+}
+
+let results = [];
+let active = 0;
+function renderResults() {
+  const q = searchEl.value;
+  results = search(q);
+  active = 0;
+  resultsEl.replaceChildren();
+  if (!q.trim()) return;
+  if (!results.length) {
+    const p = document.createElement("div");
+    p.className = "no-results";
+    p.textContent = t("noResults");
+    resultsEl.append(p);
+    return;
+  }
+  const now = new Date();
+  results.forEach((r, i) => {
+    const b = document.createElement("button");
+    b.className = "result" + (i === 0 ? " active" : "");
+    b.setAttribute("role", "option");
+    const w = wall(r.zone, now);
+    const c = clockText(w, false);
+    const left = document.createElement("span");
+    const name = document.createElement("span");
+    name.className = "r-name";
+    name.textContent = r.label;
+    const sub = document.createElement("span");
+    sub.className = "r-sub";
+    const zt = zoneText(r.zone);
+    sub.textContent = zt || r.label !== offsetLabel(w.off) ? zt + offsetLabel(w.off) : "";
+    left.append(name, sub);
+    const time = document.createElement("span");
+    time.className = "r-time";
+    time.textContent = c.hm + (c.ap ? " " + c.ap : "");
+    b.append(left, time);
+    b.addEventListener("click", () => addPlace(r));
+    resultsEl.append(b);
+  });
+}
+
+function addPlace(r) {
+  settings.places.push({ zone: r.zone, label: r.label, name: "" });
+  searchEl.value = "";
+  renderResults();
+  changed();
+  searchEl.focus();
+}
+
+searchEl.addEventListener("input", renderResults);
+searchEl.addEventListener("keydown", (e) => {
+  const buttons = resultsEl.querySelectorAll(".result");
+  if (e.key === "Enter" && results[active]) {
+    e.preventDefault();
+    addPlace(results[active]);
+  } else if ((e.key === "ArrowDown" || e.key === "ArrowUp") && buttons.length) {
+    e.preventDefault();
+    buttons[active].classList.remove("active");
+    active = (active + (e.key === "ArrowDown" ? 1 : buttons.length - 1)) % buttons.length;
+    buttons[active].classList.add("active");
+    buttons[active].scrollIntoView({ block: "nearest" });
+  }
+});
+
+function renderOptions() {
+  document.querySelectorAll("#format button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.value === settings.format));
+  document.querySelectorAll("#lang button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.value === settings.lang));
+  $("#seconds").checked = settings.seconds;
+}
+
+function renderAll() {
+  applyI18n();
+  renderOptions();
+  renderClocks();
+  renderPlaces();
+  if (searchEl.value) renderResults();
+}
+
+function changed() {
+  save();
+  renderAll();
+}
+
+document.querySelectorAll("#format button").forEach((b) => b.addEventListener("click", () => {
+  settings.format = b.dataset.value;
+  changed();
+}));
+document.querySelectorAll("#lang button").forEach((b) => b.addEventListener("click", () => {
+  settings.lang = b.dataset.value;
+  changed();
+}));
+$("#seconds").addEventListener("change", (e) => {
+  settings.seconds = e.target.checked;
+  changed();
+});
+$("#reset").addEventListener("click", () => {
+  if (!confirm(t("resetConfirm"))) return;
+  try { localStorage.removeItem(STORE); } catch {}
+  settings = load();
+  changed();
+});
+
+let lastFocus = null;
+function openSettings() {
+  lastFocus = document.activeElement;
+  renderPlaces();
+  scrim.classList.add("open");
+  document.body.classList.add("locked");
+  $("#close").focus();
+}
+function closeSettings() {
+  scrim.classList.remove("open");
+  document.body.classList.remove("locked");
+  searchEl.value = "";
+  renderResults();
+  lastFocus?.focus?.();
+}
+$("#gear").addEventListener("click", openSettings);
+$("#empty-add").addEventListener("click", () => { openSettings(); searchEl.focus(); });
+$("#close").addEventListener("click", closeSettings);
+scrim.addEventListener("click", (e) => { if (e.target === scrim) closeSettings(); });
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && scrim.classList.contains("open")) closeSettings();
+});
+
+// Other tabs changed settings.
+addEventListener("storage", (e) => {
+  if (e.key !== STORE && e.key !== null) return;
+  settings = load();
+  renderAll();
+});
+
+// ---------- Screen ----------
+
+const fsButton = $("#fullscreen");
+fsButton.hidden = !document.fullscreenEnabled;
+fsButton.addEventListener("click", () => {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen?.().catch(() => {});
+});
+
+// Controls fade away until the pointer moves or the screen is tapped.
+let idleTimer = 0;
+function wake() {
+  document.body.classList.remove("idle");
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => {
+    if (!scrim.classList.contains("open")) document.body.classList.add("idle");
+  }, 3000);
+}
+["pointermove", "pointerdown", "keydown"].forEach((ev) => addEventListener(ev, wake, { passive: true }));
+
+// Keep the screen on while the clock is showing.
+let wakeLock = null;
+async function keepAwake() {
+  if (!("wakeLock" in navigator) || document.visibilityState !== "visible" || wakeLock) return;
+  try {
+    wakeLock = await navigator.wakeLock.request("screen");
+    wakeLock.addEventListener("release", () => { wakeLock = null; });
+  } catch {}
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    tick();
+    schedule();
+    keepAwake();
+  }
+});
+addEventListener("resize", fit);
+
+// ---------- Install ----------
+
+let installPrompt = null;
+addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  installPrompt = e;
+  $("#install").hidden = false;
+});
+$("#install").addEventListener("click", async () => {
+  if (!installPrompt) return;
+  installPrompt.prompt();
+  await installPrompt.userChoice;
+  installPrompt = null;
+  $("#install").hidden = true;
+});
+const standalone = matchMedia("(display-mode: standalone), (display-mode: fullscreen)").matches || navigator.standalone;
+$("#ios-install").hidden = standalone || !/iPad|iPhone|iPod/.test(navigator.userAgent) &&
+  !(navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+if ("serviceWorker" in navigator && location.protocol !== "file:") {
+  addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
+}
+
+// ---------- Start ----------
+
+renderAll();
+schedule();
+wake();
+keepAwake();
+</script>
+</body>
+</html>
