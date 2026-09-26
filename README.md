@@ -9,7 +9,7 @@ wall-mounted tablet or TV as much as a phone.
 
 - 🌍 **Your places** — search by city (`Mumbai`, `San Jose`, `Trondheim`), time
   zone ID (`America/Denver`) or offset (`UTC+5`). Rename any place; clear the
-  name to get the default back. Reorder with the arrows.
+  name to get the default back. Reorder with the arrows; removing one can be undone.
 - 🕒 **At a glance** — each row shows today/tomorrow/yesterday and the offset from
   your own time (half-hour zones included). Starts with your own city, New York,
   Berlin and Kolkata. Your own zone is marked with a dot and
@@ -19,7 +19,8 @@ wall-mounted tablet or TV as much as a phone.
 - 🔗 **Share links** — the whole setup in a link (e.g.
   `https://time.apphub.casa/#p=Europe/Oslo~America/New+York_NYC&t=hacker&l=en`).
   Opening it loads the setup, with an undo. The fragment never reaches the server.
-- 📺 **Made for always-on screens** — fullscreen button, keeps the screen awake,
+- 📺 **Made for always-on screens** — fullscreen (button, **F** or double-click),
+  keeps the screen awake, picks up new versions around 04:00,
   controls fade away, and the layout shifts by a pixel now and then against burn-in.
 - 📲 **Installable, works offline**, no accounts, no tracking — settings live in
   `localStorage`.

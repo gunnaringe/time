@@ -14,6 +14,12 @@ is the separate `gunnaringe/world-clock` repo — leave it alone.)
 - **Service worker:** page network-first, other files cache-first with
   background refresh. Bump `CACHE` in `sw.js` only when changing the precache
   list or strategy.
+- **Nightly update:** wall screens never reload by themselves, so around 04:00
+  `checkForUpdate()` refetches `/` (`cache: "no-store"`, which the service
+  worker passes straight to the network) and reloads only if it differs from
+  the copy fetched at load — a reload drops browser fullscreen.
+- **Undo:** `showUndo(message, fn)` shows the toast; used after loading a
+  share link and after removing a place.
 - **Settings** persist in `localStorage` under `time-settings-v1`: `places`
   (`{ zone, label, name }` — `label` is the default name chosen when added,
   `name` a user override, empty = use `label`), `format` (`"24"`/`"12"`),

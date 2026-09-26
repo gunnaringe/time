@@ -245,6 +245,8 @@
   }
   .icon-btn:hover { background: var(--fill-2); color: var(--text); }
   .icon-btn svg { width: 1.2rem; height: 1.2rem; }
+  #fullscreen .fs-exit, #fullscreen.on .fs-enter { display: none; }
+  #fullscreen.on .fs-exit { display: block; }
   .icon-btn.sm { width: 2.25rem; height: 2.25rem; background: transparent; }
   .icon-btn.sm:hover { background: var(--fill); }
   .icon-btn.sm svg { width: 1.05rem; height: 1.05rem; }
@@ -473,6 +475,7 @@
 
   #toast {
     position: fixed;
+    z-index: 10;
     left: 50%;
     bottom: max(1.25rem, env(safe-area-inset-bottom));
     display: flex;
@@ -489,6 +492,10 @@
     transition: transform 0.4s var(--ease), opacity 0.3s;
   }
   #toast.show { transform: translate(-50%, 0); opacity: 1; }
+  /* With settings open, center under the panel instead of the page. */
+  body.locked #toast { left: calc(100% - min(28rem, 100%) / 2); }
+  #toast-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #toast .pill { flex: none; }
   [data-theme="hacker"] #toast { border-radius: var(--radius); }
 
   .install-hint { margin: 0.75rem 0 0; font-size: 0.85rem; color: var(--muted); }
@@ -525,7 +532,8 @@
 
 <div id="controls">
   <button class="icon-btn" id="fullscreen" data-i18n-title="fullscreen">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+    <svg class="fs-enter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+    <svg class="fs-exit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3M21 8h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3M16 21v-3a2 2 0 0 1 2-2h3"/></svg>
   </button>
   <button class="icon-btn" id="gear" data-i18n-title="settings">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -609,7 +617,7 @@
 </div>
 
 <div id="toast" role="status" aria-live="polite">
-  <span data-i18n="loaded"></span>
+  <span id="toast-text"></span>
   <button class="pill" id="undo" data-i18n="undo"></button>
 </div>
 
@@ -622,7 +630,8 @@ const I18N = {
   no: {
     settings: "Innstillinger",
     close: "Lukk",
-    fullscreen: "Fullskjerm",
+    fullscreen: "Fullskjerm (F)",
+    exitFullscreen: "Avslutt fullskjerm (F)",
     places: "Steder",
     search: "Legg til by eller tidssone",
     noResults: "Fant ingen steder",
@@ -638,6 +647,7 @@ const I18N = {
     copied: "Lenke kopiert",
     loaded: "Oppsett lastet fra lenke",
     undo: "Angre",
+    removed: "{name} er fjernet",
     reset: "Tilbakestill",
     resetConfirm: "Tilbakestille alle steder og innstillinger?",
     install: "Installer app",
@@ -657,7 +667,8 @@ const I18N = {
   en: {
     settings: "Settings",
     close: "Close",
-    fullscreen: "Fullscreen",
+    fullscreen: "Fullscreen (F)",
+    exitFullscreen: "Exit fullscreen (F)",
     places: "Places",
     search: "Add a city or time zone",
     noResults: "No places found",
@@ -673,6 +684,7 @@ const I18N = {
     copied: "Link copied",
     loaded: "Setup loaded from link",
     undo: "Undo",
+    removed: "Removed {name}",
     reset: "Reset",
     resetConfirm: "Reset all places and settings?",
     install: "Install app",
@@ -968,6 +980,21 @@ function tick() {
     r.el.classList.toggle("night", w.h >= 22 || w.h < 6);
   }
   if (scrim.classList.contains("open")) tickPlaces(now);
+  if (here.h === 4) checkForUpdate(here.y + "-" + here.mo + "-" + here.d);
+}
+
+// Wall screens run for weeks without a reload, so around 04:00 each night
+// reload if a new version has been deployed since the page was loaded.
+// (Only if changed: a reload drops browser fullscreen.)
+let baseline = null;
+let checkedOn = null;
+const fetchPage = () => fetch("/", { cache: "no-store" }).then((r) => (r.ok ? r.text() : null)).catch(() => null);
+async function checkForUpdate(day) {
+  if (checkedOn === day || scrim.classList.contains("open")) return;
+  checkedOn = day;
+  const latest = await fetchPage();
+  if (!baseline) baseline = latest; // was offline at load
+  else if (latest && latest !== baseline) location.reload();
 }
 
 // Tick on the second boundary; setInterval drifts and throttles.
@@ -1046,8 +1073,12 @@ function renderPlaces() {
     up.disabled = i === 0;
     down.disabled = i === settings.places.length - 1;
     const remove = iconButton("remove", () => {
-      settings.places.splice(i, 1);
+      const [gone] = settings.places.splice(i, 1);
       changed();
+      showUndo(t("removed").replace("{name}", gone.name || gone.label), () => {
+        settings.places.splice(Math.min(i, settings.places.length), 0, gone);
+        changed();
+      });
     });
     row.append(main, up, down, remove);
     placesEl.append(row);
@@ -1146,6 +1177,7 @@ function renderOptions() {
 function renderAll() {
   applyTheme();
   applyI18n();
+  syncFullscreen();
   renderOptions();
   renderClocks();
   renderPlaces();
@@ -1307,36 +1339,67 @@ shareBtn.addEventListener("click", async () => {
   }
 });
 
+// A message with an undo button, e.g. after loading a link or removing a place.
 const toast = $("#toast");
 let toastTimer = 0;
-let undoTo = null;
+let undoAction = null;
+function showUndo(message, undo) {
+  $("#toast-text").textContent = message;
+  undoAction = undo;
+  toast.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideToast, 8000);
+}
+function hideToast() {
+  toast.classList.remove("show");
+  undoAction = null;
+}
+$("#undo").addEventListener("click", () => {
+  const undo = undoAction;
+  hideToast();
+  undo?.();
+});
+
 function takeHash() {
   const hash = location.hash.slice(1);
   if (!hash) return;
   const next = decodeSetup(hash);
   if (!next) return;
   history.replaceState(null, "", location.pathname + location.search);
-  undoTo = settings;
+  const before = settings;
   settings = next;
   changed();
-  toast.classList.add("show");
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove("show"), 10000);
+  showUndo(t("loaded"), () => { settings = before; changed(); });
 }
-$("#undo").addEventListener("click", () => {
-  if (undoTo) { settings = undoTo; undoTo = null; changed(); }
-  toast.classList.remove("show");
-});
 addEventListener("hashchange", takeHash);
 
 // ---------- Screen ----------
 
+// Fullscreen: the button, F, or a double-click on the clocks. iPhone Safari has
+// no fullscreen for pages (Add to Home Screen instead), so the button hides.
 const fsButton = $("#fullscreen");
-fsButton.hidden = !document.fullscreenEnabled;
-fsButton.addEventListener("click", () => {
-  if (document.fullscreenElement) document.exitFullscreen();
-  else document.documentElement.requestFullscreen?.().catch(() => {});
+const root = document.documentElement;
+const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement;
+fsButton.hidden = !(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+function toggleFullscreen() {
+  if (fsButton.hidden) return;
+  if (fsElement()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+  else Promise.resolve((root.requestFullscreen || root.webkitRequestFullscreen).call(root)).catch(() => {});
+}
+function syncFullscreen() {
+  const on = !!fsElement();
+  fsButton.classList.toggle("on", on);
+  fsButton.title = t(on ? "exitFullscreen" : "fullscreen");
+  fsButton.setAttribute("aria-label", fsButton.title);
+}
+fsButton.addEventListener("click", toggleFullscreen);
+clocksEl.addEventListener("dblclick", toggleFullscreen);
+document.addEventListener("keydown", (e) => {
+  if ((e.key === "f" || e.key === "F") && !e.ctrlKey && !e.metaKey && !e.altKey &&
+      !scrim.classList.contains("open") && !e.target.closest("input")) toggleFullscreen();
 });
+document.addEventListener("fullscreenchange", syncFullscreen);
+document.addEventListener("webkitfullscreenchange", syncFullscreen);
 
 // Controls fade away until the pointer moves or the screen is tapped.
 let idleTimer = 0;
@@ -1395,6 +1458,7 @@ if ("serviceWorker" in navigator && location.protocol !== "file:") {
 
 renderAll();
 takeHash();
+fetchPage().then((text) => { baseline = text; });
 schedule();
 wake();
 keepAwake();

@@ -35,6 +35,8 @@ self.addEventListener("fetch", (e) => {
   const req = e.request;
   const url = new URL(req.url);
   if (req.method !== "GET" || url.origin !== location.origin) return;
+  // The page's nightly update check asks for the network copy.
+  if (req.cache === "no-store") return;
 
   // It's a single page: every navigation is "/".
   if (req.mode === "navigate") {
