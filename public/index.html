@@ -147,6 +147,11 @@
     border-top: 1px solid var(--line);
   }
   .clock:first-child { border-top: 0; }
+  .clock.clickable { cursor: pointer; }
+  #clocks:not(.focus) .clock.clickable:hover .place-name { color: var(--accent); }
+  .clock:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: -2px; border-radius: var(--radius); }
+  #clocks.focus .clock { animation: rise 0.45s var(--ease); }
+  @keyframes rise { from { opacity: 0; transform: scale(0.96); } }
 
   .place-name {
     font-size: var(--name, 1.5rem);
@@ -531,6 +536,9 @@
 </div>
 
 <div id="controls">
+  <button class="icon-btn" id="back" data-i18n-title="showAll" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
   <button class="icon-btn" id="fullscreen" data-i18n-title="fullscreen">
     <svg class="fs-enter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
     <svg class="fs-exit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3M21 8h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3M16 21v-3a2 2 0 0 1 2-2h3"/></svg>
@@ -647,6 +655,8 @@ const I18N = {
     copied: "Lenke kopiert",
     loaded: "Oppsett lastet fra lenke",
     undo: "Angre",
+    showOnly: "Vis bare {name}",
+    showAll: "Vis alle steder (Esc)",
     removed: "{name} er fjernet",
     reset: "Tilbakestill",
     resetConfirm: "Tilbakestille alle steder og innstillinger?",
@@ -684,6 +694,8 @@ const I18N = {
     copied: "Link copied",
     loaded: "Setup loaded from link",
     undo: "Undo",
+    showOnly: "Show only {name}",
+    showAll: "Show all places (Esc)",
     removed: "Removed {name}",
     reset: "Reset",
     resetConfirm: "Reset all places and settings?",
@@ -915,11 +927,48 @@ const $ = (sel) => document.querySelector(sel);
 const clocksEl = $("#clocks");
 let rows = [];
 
+// ---------- Focus: tap a city to show only that one ----------
+//
+// `focused` is the place object itself, so moving or removing places can't
+// point it at another city. Kept per device (not in settings, so it isn't
+// synced to other tabs or shared) and survives reloads, e.g. on a wall screen.
+const FOCUS_KEY = "time-focus";
+let focused = null;
+try {
+  const i = localStorage.getItem(FOCUS_KEY);
+  if (i !== null) focused = settings.places[Number(i)] || null;
+} catch {}
+
+function setFocus(place) {
+  focused = place;
+  renderClocks();
+}
+
 function renderClocks() {
+  if (focused && !settings.places.includes(focused)) {
+    // Settings were replaced (reload in another tab, link, reset): find it again.
+    const f = focused;
+    focused = settings.places.find((p) => p.zone === f.zone && p.label === f.label && p.name === f.name) || null;
+  }
+  try {
+    if (focused) localStorage.setItem(FOCUS_KEY, settings.places.indexOf(focused));
+    else localStorage.removeItem(FOCUS_KEY);
+  } catch {}
+  const many = settings.places.length > 1;
   clocksEl.replaceChildren();
-  rows = settings.places.map((p) => {
+  rows = (focused ? [focused] : settings.places).map((p) => {
     const el = document.createElement("div");
     el.className = "clock";
+    if (many) {
+      el.classList.add("clickable");
+      el.tabIndex = 0;
+      el.setAttribute("role", "button");
+      el.title = focused ? t("showAll") : t("showOnly").replace("{name}", p.name || p.label);
+      el.addEventListener("click", () => setFocus(focused ? null : p));
+      el.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setFocus(focused ? null : p); }
+      });
+    }
     el.innerHTML = '<div class="info"><div class="place-name"></div><div class="meta"></div></div>' +
       '<div class="time"><span class="hm"></span><span class="ss"></span><span class="ap"></span></div>';
     el.querySelector(".place-name").textContent = p.name || p.label;
@@ -930,6 +979,8 @@ function renderClocks() {
   });
   $("#empty").hidden = rows.length > 0;
   clocksEl.classList.toggle("solo", rows.length === 1);
+  clocksEl.classList.toggle("focus", !!focused);
+  $("#back").hidden = !focused;
   fit();
   tick();
 }
@@ -1074,9 +1125,11 @@ function renderPlaces() {
     down.disabled = i === settings.places.length - 1;
     const remove = iconButton("remove", () => {
       const [gone] = settings.places.splice(i, 1);
+      const wasFocused = focused === gone;
       changed();
       showUndo(t("removed").replace("{name}", gone.name || gone.label), () => {
         settings.places.splice(Math.min(i, settings.places.length), 0, gone);
+        if (wasFocused) focused = gone;
         changed();
       });
     });
@@ -1208,6 +1261,7 @@ $("#seconds").addEventListener("change", (e) => {
 $("#reset").addEventListener("click", () => {
   if (!confirm(t("resetConfirm"))) return;
   try { localStorage.removeItem(STORE); } catch {}
+  focused = null;
   settings = load();
   changed();
 });
@@ -1228,11 +1282,22 @@ function closeSettings() {
   lastFocus?.focus?.();
 }
 $("#gear").addEventListener("click", openSettings);
+$("#back").addEventListener("click", () => setFocus(null));
 $("#empty-add").addEventListener("click", () => { openSettings(); searchEl.focus(); });
 $("#close").addEventListener("click", closeSettings);
 scrim.addEventListener("click", (e) => { if (e.target === scrim) closeSettings(); });
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && scrim.classList.contains("open")) closeSettings();
+  if (scrim.classList.contains("open")) {
+    if (e.key === "Escape") closeSettings();
+    return;
+  }
+  if (!focused || e.target.closest("input")) return;
+  if (e.key === "Escape") setFocus(null);
+  else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+    const n = settings.places.length;
+    const i = settings.places.indexOf(focused);
+    setFocus(settings.places[(i + (e.key === "ArrowRight" ? 1 : n - 1)) % n]);
+  }
 });
 
 // Other tabs changed settings.
@@ -1375,7 +1440,7 @@ addEventListener("hashchange", takeHash);
 
 // ---------- Screen ----------
 
-// Fullscreen: the button, F, or a double-click on the clocks. iPhone Safari has
+// Fullscreen: the button or F. iPhone Safari has
 // no fullscreen for pages (Add to Home Screen instead), so the button hides.
 const fsButton = $("#fullscreen");
 const root = document.documentElement;
@@ -1393,7 +1458,6 @@ function syncFullscreen() {
   fsButton.setAttribute("aria-label", fsButton.title);
 }
 fsButton.addEventListener("click", toggleFullscreen);
-clocksEl.addEventListener("dblclick", toggleFullscreen);
 document.addEventListener("keydown", (e) => {
   if ((e.key === "f" || e.key === "F") && !e.ctrlKey && !e.metaKey && !e.altKey &&
       !scrim.classList.contains("open") && !e.target.closest("input")) toggleFullscreen();

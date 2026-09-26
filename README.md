@@ -14,12 +14,14 @@ wall-mounted tablet or TV as much as a phone.
   your own time (half-hour zones included). Starts with your own city, New York,
   Berlin and Kolkata. Your own zone is marked with a dot and
   shows the full date. Night hours are dimmed a little.
+- 🔍 **One city, full size** — tap a city to show only that one; tap again or
+  press Esc to go back, ← → to step through them. Remembered across reloads.
 - ⚙️ **12/24 h, optional seconds, Norwegian or English.**
 - 🎨 **Themes** — auto (follows the system), light, dark and hacker.
 - 🔗 **Share links** — the whole setup in a link (e.g.
   `https://time.apphub.casa/#p=Europe/Oslo~America/New+York_NYC&t=hacker&l=en`).
   Opening it loads the setup, with an undo. The fragment never reaches the server.
-- 📺 **Made for always-on screens** — fullscreen (button, **F** or double-click),
+- 📺 **Made for always-on screens** — fullscreen (button or **F**),
   keeps the screen awake, picks up new versions around 04:00,
   controls fade away, and the layout shifts by a pixel now and then against burn-in.
 - 📲 **Installable, works offline**, no accounts, no tracking — settings live in

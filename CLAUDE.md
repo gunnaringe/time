@@ -18,6 +18,11 @@ is the separate `gunnaringe/world-clock` repo — leave it alone.)
   `checkForUpdate()` refetches `/` (`cache: "no-store"`, which the service
   worker passes straight to the network) and reloads only if it differs from
   the copy fetched at load — a reload drops browser fullscreen.
+- **Focus view:** tapping a city (Enter/Space on keyboard) shows only that
+  one; tap again, Esc or the back button returns, ←/→ step through places.
+  `focused` is the place object, persisted per device as an index under
+  `time-focus` (not in settings — not synced across tabs or shared). A tap
+  means focus, so there's no double-click fullscreen; use F or the button.
 - **Undo:** `showUndo(message, fn)` shows the toast; used after loading a
   share link and after removing a place.
 - **Settings** persist in `localStorage` under `time-settings-v1`: `places`
