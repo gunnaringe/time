@@ -45,3 +45,7 @@ on push to `main`, or by hand:
 ```sh
 npx wrangler deploy
 ```
+
+## Licence
+
+[Apache 2.0](LICENSE).
